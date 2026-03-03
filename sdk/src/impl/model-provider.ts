@@ -14,6 +14,7 @@ import {
   ANTHROPIC_API_BASE_URL,
   CLAUDE_CODE_SYSTEM_PROMPT_PREFIX,
   CLAUDE_OAUTH_BETA_HEADERS,
+  CLAUDE_OAUTH_ENABLED,
   isClaudeModel,
   toAnthropicModelId,
 } from '@codebuff/common/constants/claude-oauth'
@@ -193,8 +194,13 @@ export async function getModelForRequest(params: ModelRequestParams): Promise<Mo
   }
 
   // Priority 2: Claude OAuth direct
-  // Skip if explicitly requested, if rate-limited, or if not a Claude model
-  if (!skipClaudeOAuth && !isClaudeOAuthRateLimited() && isClaudeModel(model)) {
+  // Skip if feature disabled, explicitly requested, rate-limited, or not a Claude model
+  if (
+    CLAUDE_OAUTH_ENABLED &&
+    !skipClaudeOAuth &&
+    !isClaudeOAuthRateLimited() &&
+    isClaudeModel(model)
+  ) {
     // Get valid credentials (will refresh if needed)
     const claudeOAuthCredentials = await getValidClaudeOAuthCredentials()
     if (claudeOAuthCredentials) {

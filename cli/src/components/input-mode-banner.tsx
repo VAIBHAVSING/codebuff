@@ -1,3 +1,4 @@
+import { CLAUDE_OAUTH_ENABLED } from '@codebuff/common/constants/claude-oauth'
 import React from 'react'
 
 import { AnthropicConnectBanner } from './anthropic-connect-banner'
@@ -27,8 +28,10 @@ const BANNER_REGISTRY: Record<
   usage: ({ showTime }) => <UsageBanner showTime={showTime} />,
   referral: () => <ReferralBanner />,
   help: () => <HelpBanner />,
-  'connect:claude': () => <ClaudeConnectBanner />,
-  'connect:anthropic': () => <AnthropicConnectBanner />,
+  ...(CLAUDE_OAUTH_ENABLED
+    ? { 'connect:claude': () => <ClaudeConnectBanner /> }
+    : {}),
+
   subscriptionLimit: () => <SubscriptionLimitBanner />,
 }
 
