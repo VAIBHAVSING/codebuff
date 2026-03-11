@@ -13,6 +13,7 @@ import {
   DEFAULT_OPUS_MODEL,
   DEFAULT_SONNET_MODEL,
   DEFAULT_HAIKU_MODEL,
+  DEFAULT_REVIEWER_TIER,
 } from '../utils/anthropic-byok'
 
 export const AnthropicConnectBanner = () => {
@@ -67,6 +68,9 @@ export const AnthropicConnectBanner = () => {
                     </text>
                   )
                 })}
+                {config.reviewerTier && (
+                  <text style={{ fg: theme.muted }}>Reviewer: {config.reviewerTier}</text>
+                )}
               </box>
             )}
           </box>
@@ -136,6 +140,16 @@ export const AnthropicConnectBanner = () => {
             </text>
             <text style={{ fg: theme.muted }}>
               (default: {DEFAULT_HAIKU_MODEL})
+            </text>
+          </box>
+        )}
+        {step === 'model-reviewer' && (
+          <box style={{ flexDirection: 'column', marginTop: 1 }}>
+            <text style={{ fg: theme.muted }}>
+              Enter code reviewer model tier (opus/sonnet/haiku), or press Enter for default:
+            </text>
+            <text style={{ fg: theme.muted }}>
+              (default: {DEFAULT_REVIEWER_TIER})
             </text>
           </box>
         )}

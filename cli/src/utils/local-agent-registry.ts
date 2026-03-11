@@ -2,6 +2,7 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 
+import { BYOK_ANTHROPIC_REVIEWER_MODEL_ENV_VAR } from '@codebuff/common/constants/byok'
 import { pluralize } from '@codebuff/common/util/string'
 import { loadLocalAgents as sdkLoadLocalAgents, loadMCPConfigSync } from '@codebuff/sdk'
 
@@ -362,6 +363,25 @@ export const loadAgentDefinitions = (): AgentDefinition[] => {
         def.mcpServers = {
           ...def.mcpServers,
           ...mcpServersCache,
+        }
+      }
+    }
+  }
+
+  // Apply BYOK reviewer model tier override
+  const reviewerTier = process.env[BYOK_ANTHROPIC_REVIEWER_MODEL_ENV_VAR]
+  if (reviewerTier) {
+    const tierToModel: Record<string, string> = {
+      opus: 'anthropic/claude-opus-4.6',
+      sonnet: 'anthropic/claude-sonnet-4-5',
+      haiku: 'anthropic/claude-haiku-4-5',
+    }
+    const reviewerModel = tierToModel[reviewerTier]
+    if (reviewerModel) {
+      const reviewerAgentIds = new Set(['code-reviewer', 'code-reviewer-multi-prompt'])
+      for (const def of definitions) {
+        if (reviewerAgentIds.has(def.id)) {
+          def.model = reviewerModel
         }
       }
     }

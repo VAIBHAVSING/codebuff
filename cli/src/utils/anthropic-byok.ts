@@ -10,6 +10,7 @@ import {
   BYOK_ANTHROPIC_API_KEY_ENV_VAR,
   BYOK_ANTHROPIC_BASE_URL_ENV_VAR,
   BYOK_ANTHROPIC_MODELS_ENV_VAR,
+  BYOK_ANTHROPIC_REVIEWER_MODEL_ENV_VAR,
 } from '@codebuff/common/constants/byok'
 
 import { getAuthToken, getConfigDir } from './auth'
@@ -18,6 +19,7 @@ export interface ByokAnthropicConfig {
   apiKey: string
   baseUrl?: string
   models?: string
+  reviewerTier?: string
 }
 
 const BYOK_CONFIG_FILENAME = 'anthropic-byok.json'
@@ -65,6 +67,7 @@ export function clearByokAnthropicConfig(): void {
   delete process.env[BYOK_ANTHROPIC_API_KEY_ENV_VAR]
   delete process.env[BYOK_ANTHROPIC_BASE_URL_ENV_VAR]
   delete process.env[BYOK_ANTHROPIC_MODELS_ENV_VAR]
+  delete process.env[BYOK_ANTHROPIC_REVIEWER_MODEL_ENV_VAR]
 
   // Reset cached SDK client so it picks up the changed auth state
   const { resetCodebuffClient } = require('./codebuff-client')
@@ -81,6 +84,9 @@ export function applyByokAnthropicEnv(config: ByokAnthropicConfig): void {
   }
   if (config.models) {
     process.env[BYOK_ANTHROPIC_MODELS_ENV_VAR] = config.models
+  }
+  if (config.reviewerTier) {
+    process.env[BYOK_ANTHROPIC_REVIEWER_MODEL_ENV_VAR] = config.reviewerTier
   }
 }
 
@@ -121,11 +127,12 @@ export function getByokAnthropicStatus(): {
 // Multi-step input flow
 // ============================================================================
 
-type ByokStep = 'api-key' | 'base-url' | 'model-opus' | 'model-sonnet' | 'model-haiku'
+type ByokStep = 'api-key' | 'base-url' | 'model-opus' | 'model-sonnet' | 'model-haiku' | 'model-reviewer'
 
 export const DEFAULT_OPUS_MODEL = 'claude-opus-4-6'
 export const DEFAULT_SONNET_MODEL = 'claude-sonnet-4-5'
 export const DEFAULT_HAIKU_MODEL = 'claude-haiku-4-5'
+export const DEFAULT_REVIEWER_TIER = 'sonnet'
 
 let currentStep: ByokStep = 'api-key'
 let pendingConfig: Partial<ByokAnthropicConfig> = {}
@@ -141,6 +148,7 @@ const BYOK_PLACEHOLDERS: Record<ByokStep, string> = {
   'model-opus': `enter opus model name (default: ${DEFAULT_OPUS_MODEL})...`,
   'model-sonnet': `enter sonnet model name (default: ${DEFAULT_SONNET_MODEL})...`,
   'model-haiku': `enter haiku model name (default: ${DEFAULT_HAIKU_MODEL})...`,
+  'model-reviewer': `enter reviewer model tier: opus, sonnet, or haiku (default: ${DEFAULT_REVIEWER_TIER})...`,
 }
 
 export function getByokPlaceholder(): string {
@@ -205,16 +213,29 @@ export function handleByokStepInput(input: string): ByokStepResult {
     }
   }
 
-  // model-haiku step (final)
-  pendingModels.haiku = trimmed || DEFAULT_HAIKU_MODEL
+  if (currentStep === 'model-haiku') {
+    pendingModels.haiku = trimmed || DEFAULT_HAIKU_MODEL
+    currentStep = 'model-reviewer'
+    return {
+      done: false,
+      message: `Haiku model: ${pendingModels.haiku}. Enter code reviewer model tier (opus/sonnet/haiku) or press Enter for default (${DEFAULT_REVIEWER_TIER}):`,
+    }
+  }
+
+  // model-reviewer step (final)
+  const reviewerTier = trimmed || DEFAULT_REVIEWER_TIER
+  if (!['opus', 'sonnet', 'haiku'].includes(reviewerTier)) {
+    return { done: false, message: 'Invalid tier. Please enter opus, sonnet, or haiku.' }
+  }
   const opusModel = pendingModels.opus!
   const sonnetModel = pendingModels.sonnet!
-  const haikuModel = pendingModels.haiku
+  const haikuModel = pendingModels.haiku!
   const modelsString = `opus:${opusModel},sonnet:${sonnetModel},haiku:${haikuModel}`
   const config: ByokAnthropicConfig = {
     apiKey: pendingConfig.apiKey!,
     baseUrl: pendingConfig.baseUrl,
     models: modelsString,
+    reviewerTier,
   }
   saveByokAnthropicConfig(config)
   applyByokAnthropicEnv(config)
@@ -226,6 +247,7 @@ export function handleByokStepInput(input: string): ByokStepResult {
   parts.push(`  Opus:   ${opusModel}`)
   parts.push(`  Sonnet: ${sonnetModel}`)
   parts.push(`  Haiku:  ${haikuModel}`)
+  parts.push(`  Reviewer: ${reviewerTier}`)
   return { done: true, message: parts.join('\n') }
 }
 
